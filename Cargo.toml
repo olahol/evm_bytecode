@@ -3,5 +3,5 @@ name = "evm_bytecode"
 version = "0.1.0"
 edition = "2021"
 
-[dev-dependencies]
+[dependencies]
 hex = "0.4.3"

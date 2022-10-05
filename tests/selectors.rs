@@ -32,7 +32,7 @@ fn parse_selectors_from_files() {
         let code = read_bytecode(&file);
 
         let selectors1 = read_selectors(&file.replace(".bin", ".txt"));
-        let selectors2 = selectors_from_bytecode(code);
+        let selectors2 = selectors_from_bytecode(&code);
 
         assert_eq!(
             selectors1.len(),

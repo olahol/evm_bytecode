@@ -1,48 +1,45 @@
-use std::ops::RangeInclusive;
+use bytecode::Analyzer;
+use bytecode::Pattern::OpCode;
+use op_codes::*;
 
-const PUSHN: RangeInclusive<u8> = 0x60..=0x75;
-const DUP1: u8 = 0x80;
-const PUSH4: u8 = 0x63;
-const EQ: u8 = 0x14;
+pub mod bytecode;
+pub mod op_codes;
 
-fn parse_selector(i: usize, input: &[u8]) -> Option<u32> {
-    let op1 = *input.get(i)?;
-    let op2 = *input.get(i + 1)?;
-    let op3 = *input.get(i + 6)?;
+/// Get 4-byte selectors from EVM bytecode
+pub fn selectors_from_bytecode(input: &[u8]) -> Vec<u32> {
+    let solidity: Vec<_> = Analyzer::new(input)
+        .extract_pattern(&[
+            OpCode(DUP1),
+            OpCode(PUSH4),
+            OpCode(EQ),
+            OpCode(PUSH1) | OpCode(PUSH2),
+            OpCode(JUMPI),
+        ])
+        .into_iter()
+        .filter(|bs| bs.len() == 4)
+        .map(|bs| u32::from_be_bytes(bs.try_into().unwrap()))
+        .collect();
 
-    if op1 == DUP1 && op2 == PUSH4 && op3 == EQ {
-        Some(u32::from_be_bytes([
-            *input.get(i + 2)?,
-            *input.get(i + 3)?,
-            *input.get(i + 4)?,
-            *input.get(i + 5)?,
-        ]))
+    let vyper: Vec<_> = Analyzer::new(input)
+        .extract_pattern(&[
+            OpCode(PUSH4),
+            OpCode(PUSH1),
+            OpCode(MLOAD),
+            OpCode(EQ),
+            OpCode(ISZERO),
+            OpCode(PUSH2),
+            OpCode(JUMPI),
+        ])
+        .into_iter()
+        .filter(|bs| bs.len() == 4)
+        .map(|bs| u32::from_be_bytes(bs.try_into().unwrap()))
+        .collect();
+
+    if vyper.len() > solidity.len() {
+        vyper
     } else {
-        None
+        solidity
     }
-}
-
-/// Get a list of 4 byte selectors from EVM bytecode
-pub fn selectors_from_bytecode(input: Vec<u8>) -> Vec<u32> {
-    let mut v: Vec<u32> = vec![];
-
-    let mut i = 0;
-
-    while i < input.len() {
-        let op = input[i];
-
-        if let Some(x) = parse_selector(i, &input) {
-            v.push(x)
-        }
-
-        i += if PUSHN.contains(&op) {
-            (op - 0x5e) as usize
-        } else {
-            1
-        };
-    }
-
-    v
 }
 
 #[cfg(test)]
@@ -51,6 +48,6 @@ mod tests {
 
     #[test]
     fn empty_input() {
-        selectors_from_bytecode(vec![]);
+        selectors_from_bytecode(&[]);
     }
 }
