@@ -7,8 +7,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let data = fs::read_to_string(file)?;
         let code = hex::decode(data.trim())?;
 
-        for s in evm_bytecode::selectors_from_bytecode(&code) {
-            println!("{:#010x}", s);
+        for s in evm_bytecode::heuristic::selectors_from_bytecode(&code) {
+            println!("0x{}", hex::encode(s));
+        }
+
+        for s in evm_bytecode::heuristic::events_from_bytecode(&code) {
+            println!("0x{}", hex::encode(s));
         }
     } else {
         eprintln!("no file");
