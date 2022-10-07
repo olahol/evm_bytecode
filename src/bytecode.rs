@@ -2,15 +2,17 @@ use crate::op_codes::{PUSH1, PUSH32};
 use std::ops::BitOr;
 
 pub enum Pattern {
-    OpCode(u8),
-    OpCodes(Vec<u8>),
+    Op(u8),
+    Ops(Vec<u8>),
+    OpAny,
 }
 
 impl PartialEq<u8> for &Pattern {
     fn eq(&self, other: &u8) -> bool {
         match self {
-            Pattern::OpCode(v) => v == other,
-            Pattern::OpCodes(vs) => vs.contains(other),
+            Pattern::Op(v) => v == other,
+            Pattern::Ops(vs) => vs.contains(other),
+            Pattern::OpAny => true,
         }
     }
 }
@@ -20,25 +22,27 @@ impl BitOr for Pattern {
 
     fn bitor(self, other: Self) -> Self::Output {
         match (self, other) {
-            (Self::OpCode(a), Self::OpCode(b)) => Self::OpCodes(vec![a, b]),
-            (Self::OpCode(a), Self::OpCodes(b)) => Self::OpCodes([&[a], b.as_slice()].concat()),
-            (Self::OpCodes(a), Self::OpCode(b)) => Self::OpCodes([a.as_slice(), &[b]].concat()),
-            (Self::OpCodes(a), Self::OpCodes(b)) => Self::OpCodes([a, b].concat()),
+            (Self::Op(a), Self::Op(b)) => Self::Ops(vec![a, b]),
+            (Self::Op(a), Self::Ops(b)) => Self::Ops([&[a], b.as_slice()].concat()),
+            (Self::Ops(a), Self::Op(b)) => Self::Ops([a.as_slice(), &[b]].concat()),
+            (Self::Ops(a), Self::Ops(b)) => Self::Ops([a, b].concat()),
+            (Self::OpAny, _) => Self::OpAny,
+            (_, Self::OpAny) => Self::OpAny,
         }
     }
 }
 
-pub struct Analyzer<'a> {
+pub struct Bytecode<'a> {
     code: &'a [u8],
 }
 
-impl<'a> Analyzer<'a> {
+impl<'a> Bytecode<'a> {
     pub fn new(code: &'a [u8]) -> Self {
-        Analyzer { code }
+        Bytecode { code }
     }
 
-    pub fn extract_pattern(&self, pattern: &[Pattern]) -> Vec<&[u8]> {
-        let mut output: Vec<&[u8]> = Vec::new();
+    pub fn extract_pattern(&self, pattern: &[Pattern]) -> Vec<Vec<&[u8]>> {
+        let mut output: Vec<Vec<&[u8]>> = Vec::new();
         let mut buf: Vec<&[u8]> = Vec::new();
         let mut pc = 0;
 
@@ -51,7 +55,9 @@ impl<'a> Analyzer<'a> {
                 pc += 1;
 
                 if pc == pattern.len() {
-                    output.append(&mut buf);
+                    output.push(buf);
+
+                    buf = Vec::new();
                     pc = 0;
                 }
             } else if pc > 0 {
@@ -82,7 +88,7 @@ impl<'a> Analyzer<'a> {
     }
 }
 
-impl<'a> IntoIterator for &Analyzer<'a> {
+impl<'a> IntoIterator for &Bytecode<'a> {
     type Item = (usize, u8, Option<&'a [u8]>);
     type IntoIter = BytecodeIterator<'a>;
 
@@ -130,6 +136,45 @@ impl<'a> Iterator for BytecodeIterator<'a> {
             }
         } else {
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bytecode::*;
+    use crate::op_codes::*;
+
+    #[allow(clippy::assertions_on_constants)]
+    #[test]
+    fn empty_bytecode() {
+        let b = Bytecode::new(&[]);
+
+        assert_eq!(b.extract_pattern(&[Pattern::OpAny]).len(), 0);
+        assert!(!b.has_pattern(&[Pattern::OpAny]));
+
+        for (_, _, _) in &b {
+            assert!(false)
+        }
+    }
+
+    #[test]
+    fn push_aware_iterator() {
+        let s = hex::decode("61ffff000062ffff").unwrap();
+        let b = Bytecode::new(&s);
+
+        assert_eq!(b.into_iter().count(), 4);
+
+        for (offset, op, data) in &b {
+            if offset == 0 {
+                assert_eq!(op, PUSH2);
+                assert_ne!(data, None);
+            } else if offset == 5 {
+                assert_eq!(op, PUSH3);
+                assert_eq!(data, None);
+            } else {
+                assert_eq!(op, STOP);
+            }
         }
     }
 }

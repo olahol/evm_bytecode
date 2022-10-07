@@ -1,5 +1,5 @@
-use crate::bytecode::Analyzer;
-use crate::bytecode::Pattern::OpCode;
+use crate::bytecode::Bytecode;
+use crate::bytecode::Pattern::Op;
 use crate::op_codes::*;
 
 /// Get event signatures from EVM bytecode
@@ -9,7 +9,7 @@ pub fn events_from_bytecode(input: &[u8]) -> Vec<[u8; 32]> {
     let mut t: &[u8] = &[];
     let mut c = -1;
 
-    for (_, op, data) in &Analyzer::new(input) {
+    for (_, op, data) in &Bytecode::new(input) {
         if op == PUSH32 {
             if let Some(value) = data {
                 t = value;
@@ -40,32 +40,30 @@ pub fn events_from_bytecode(input: &[u8]) -> Vec<[u8; 32]> {
 
 /// Get selectors from EVM bytecode
 pub fn selectors_from_bytecode(input: &[u8]) -> Vec<[u8; 4]> {
-    let solidity: Vec<_> = Analyzer::new(input)
+    let solidity: Vec<_> = Bytecode::new(input)
         .extract_pattern(&[
-            OpCode(DUP1),
-            OpCode(PUSH4),
-            OpCode(EQ),
-            OpCode(PUSH1) | OpCode(PUSH2),
-            OpCode(JUMPI),
+            Op(DUP1),
+            Op(PUSH4),
+            Op(EQ),
+            Op(PUSH1) | Op(PUSH2),
+            Op(JUMPI),
         ])
         .into_iter()
-        .filter(|bs| bs.len() == 4)
-        .map(|bs| bs.try_into().unwrap())
+        .map(|bs| bs[0].try_into().unwrap())
         .collect();
 
-    let vyper: Vec<_> = Analyzer::new(input)
+    let vyper: Vec<_> = Bytecode::new(input)
         .extract_pattern(&[
-            OpCode(PUSH4),
-            OpCode(PUSH1),
-            OpCode(MLOAD),
-            OpCode(EQ),
-            OpCode(ISZERO),
-            OpCode(PUSH2),
-            OpCode(JUMPI),
+            Op(PUSH4),
+            Op(PUSH1),
+            Op(MLOAD),
+            Op(EQ),
+            Op(ISZERO),
+            Op(PUSH2),
+            Op(JUMPI),
         ])
         .into_iter()
-        .filter(|bs| bs.len() == 4)
-        .map(|bs| bs.try_into().unwrap())
+        .map(|bs| bs[0].try_into().unwrap())
         .collect();
 
     if vyper.len() > solidity.len() {
