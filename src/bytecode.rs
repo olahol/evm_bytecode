@@ -1,6 +1,7 @@
 use crate::op_codes::{PUSH1, PUSH32};
 use std::ops::BitOr;
 
+/// EVM op code patterns, supports composition with `|`.
 pub enum Pattern {
     Op(u8),
     Ops(Vec<u8>),
@@ -37,10 +38,25 @@ pub struct Bytecode<'a> {
 }
 
 impl<'a> Bytecode<'a> {
+    /// Create a new Bytecode instance from the provided EVM code
     pub fn new(code: &'a [u8]) -> Self {
         Bytecode { code }
     }
 
+    /// Extract PUSH values for a specific Pattern
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use evm_bytecode::bytecode::{Bytecode, Pattern::Op};
+    /// use evm_bytecode::op_codes::*;
+    ///
+    /// fn foo() {
+    ///    let code = hex::decode("...").unwrap();
+    ///    let bytecode = Bytecode::new(&code);
+    ///    let jump_offsets = bytecode.extract_pattern(&[Op(PUSH1) | Op(PUSH2), Op(JUMPI)]);
+    /// }
+    /// ```
     pub fn extract_pattern(&self, pattern: &[Pattern]) -> Vec<Vec<&[u8]>> {
         let mut output: Vec<Vec<&[u8]>> = Vec::new();
         let mut buf: Vec<&[u8]> = Vec::new();
@@ -69,6 +85,20 @@ impl<'a> Bytecode<'a> {
         output
     }
 
+    /// Check if a specific Pattern is present
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use evm_bytecode::bytecode::{Bytecode, Pattern::Op};
+    /// use evm_bytecode::op_codes::*;
+    ///
+    /// fn foo() {
+    ///    let code = hex::decode("...").unwrap();
+    ///    let bytecode = Bytecode::new(&code);
+    ///    let has_codesize = bytecode.has_pattern(&[Op(CODESIZE)]);
+    /// }
+    /// ```
     pub fn has_pattern(&self, pattern: &[Pattern]) -> bool {
         let mut pc = 0;
 
