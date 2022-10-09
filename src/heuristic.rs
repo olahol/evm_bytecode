@@ -2,6 +2,11 @@ use crate::bytecode::Bytecode;
 use crate::bytecode::Pattern::Op;
 use crate::op_codes::*;
 
+/// Determine if bytecode is contract creation code
+pub fn is_creation_code(input: &[u8]) -> bool {
+    Bytecode::new(input).has_pattern(&[Op(CODESIZE)])
+}
+
 /// Get event signatures from EVM bytecode
 pub fn events_from_bytecode(input: &[u8]) -> Vec<[u8; 32]> {
     let mut o = Vec::new();
