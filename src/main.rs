@@ -14,6 +14,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         for s in evm_bytecode::heuristic::events_from_bytecode(&code) {
             println!("0x{}", hex::encode(s));
         }
+
+        println!(
+            "Is creation code: {}",
+            if evm_bytecode::heuristic::is_creation_code(&code) {
+                "Yes"
+            } else {
+                "No"
+            }
+        );
     } else {
         eprintln!("no file");
     }
