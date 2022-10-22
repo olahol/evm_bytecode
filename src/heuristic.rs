@@ -4,7 +4,7 @@ use crate::op_codes::*;
 
 /// Determine if bytecode is contract creation code
 pub fn is_creation_code(input: &[u8]) -> bool {
-    Bytecode::new(input).has_pattern(&[Op(CODESIZE)])
+    Bytecode::new(input).has_pattern(&[Op(CODESIZE)]) && Bytecode::new(input).has_pattern(&[Op(CODECOPY)])
 }
 
 /// Get event signatures from EVM bytecode
