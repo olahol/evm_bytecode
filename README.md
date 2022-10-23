@@ -18,3 +18,14 @@ fn main() {
     }
 }
 ```
+
+```rust
+// Extract all 4-byte selectors
+fn main() {
+    let code = hex::decode("...").unwrap();
+
+    for s in evm_bytecode::heuristic::selectors_from_bytecode(&code) {
+        println!("0x{}", hex::encode(s));
+    }
+}
+```
